@@ -70,3 +70,35 @@ Designed to help users **prepare smarter for interviews** with personalized insi
 ```bash
 git clone https://github.com/anshrajput-tech/PrepSense
 cd PrepSense
+
+cd server
+npm install
+
+.env
+PORT=5000
+MONGO_URI=your_mongodb_uri
+JWT_SECRET=your_jwt_secret
+RAZORPAY_KEY_ID=your_key
+RAZORPAY_KEY_SECRET=your_secret
+
+frontend
+cd ../frontend
+npm install
+
+
+VITE_FIREBASE_API_KEY=your_firebase_key
+VITE_BACKEND_URL=http://localhost:5000
+
+
+
+# Backend
+cd backend
+npm run dev
+
+# Frontend
+cd frontend
+npm run dev
+
+
+Deployed using Render
+```
