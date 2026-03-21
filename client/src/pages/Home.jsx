@@ -34,8 +34,8 @@ function Home() {
       <div className="flex-1 px-6 py-20">
         <div className="max-w-6xl mx-auto">
           <div className="flex justify-center mb-6">
-            <div className="  text-sm px-4 py-2 rounded-full flex items-center gap-2 bg-green-600 text-white tracking-wide p-2 ">
-              <HiSparkles size={16} className="bg-green-600 text-green-50" />
+            <div className="  text-sm px-4 py-2 rounded-full flex items-center gap-2 bg-red-600 text-white tracking-wide p-2 ">
+              <HiSparkles size={16} className="bg-red-600 text-red-50" />
               <span className=" ">AI Powered Smart Interview Platform</span>
             </div>
           </div>
@@ -48,7 +48,7 @@ function Home() {
             >
               Practice Interviews with
               <span className="relative inline-block">
-                <span className="bg-green-100 text-green-600 inline-flex items-center px-7 py-1 rounded-full mt-2">
+                <span className="bg-red-100 text-red-600 inline-flex items-center px-7 py-1 rounded-full mt-2">
                   AI Intelligence
                 </span>
               </span>
@@ -124,19 +124,19 @@ function Home() {
                 transition={{ duration: 0.6 + index * 0.2 }} //pehle 1st ayega fir 2nd fir 3rd
                 whileHover={{ rotate: 0, scale: 1.02 }}
                 className={`
-        relative bg-white rounded-3xl border-2 border-green-100 
-        hover:border-green-500 p-10 w-80 max-w-[90%] shadow-md hover:shadow-2xl 
+        relative bg-white rounded-3xl border-2 border-red-100 
+        hover:border-red-500 p-10 w-80 max-w-[90%] shadow-md hover:shadow-2xl 
         transition-all duration-300
         ${index === 0 ? "-rotate-4" : ""}
         ${index === 1 ? "rotate-3 md:-mt-6 shadow-xl" : ""}
         ${index === 2 ? "-rotate-3" : ""}
       `}
               >
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-white border-2 border-green-500 text-green-600 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg">
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-white border-2 border-red-500 text-red-600 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg">
                   {item.icon}
                 </div>
                 <div className="pt-10 text-center">
-                  <div className="text-xs text-green-600 font-semibold mb-2 tracking-wider">
+                  <div className="text-xs text-red-600 font-semibold mb-2 tracking-wider">
                     {item.step}
                   </div>
                   <h3 className="font-semibold mb-3 text-lg">{item.title}</h3>
@@ -155,7 +155,7 @@ function Home() {
               transition={{ duration: 0.6 }}
               className="text-4xl font-semibold text-center mb-16"
             >
-              Advanced AI <span className="text-green-600">Capabilities</span>
+              Advanced AI <span className="text-red-600">Capabilities</span>
             </motion.h2>
 
             <div className="grid md:grid-cols-2 gap-10">
@@ -203,7 +203,7 @@ function Home() {
                     </div>
 
                     <div className="w-full md:w-1/2">
-                      <div className="bg-green-50 text-green-600 w-12 h-12 rounded-xl flex items-center justify-center mb-6">
+                      <div className="bg-red-50 text-red-600 w-12 h-12 rounded-xl flex items-center justify-center mb-6">
                         {item.icon}
                       </div>
                       <h3 className="font-semibold mb-3 text-xl">
@@ -226,7 +226,7 @@ function Home() {
               transition={{ duration: 0.6 }}
               className="text-4xl font-semibold text-center mb-16"
             >
-              Multiple Interview <span className="text-green-600">Modes</span>
+              Multiple Interview <span className="text-red-600">Modes</span>
             </motion.h2>
 
             <div className="grid md:grid-cols-2 gap-10">

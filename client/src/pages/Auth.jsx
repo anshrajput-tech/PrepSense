@@ -10,8 +10,8 @@ import { ServerUrl } from "../App";
 import { useDispatch } from "react-redux";
 import { setUserData } from "../redux/userSlice";
 
-function Auth({isModel=false}) {
-  const dispatch=useDispatch()
+function Auth({ isModel = false }) {
+  const dispatch = useDispatch();
   const handleGoogleAuth = async () => {
     try {
       const response = await signInWithPopup(auth, provider);
@@ -23,18 +23,19 @@ function Auth({isModel=false}) {
         { name, email },
         { withCredentials: true },
       );
-      dispatch(setUserData(result.data))
-
+      dispatch(setUserData(result.data));
     } catch (error) {
       console.log(error);
-      dispatch(setUserData(null))
+      dispatch(setUserData(null));
     }
   };
   return (
-    <div className={`
+    <div
+      className={`
       w-full 
       ${isModel ? "py-4" : "min-h-screen bg-[#f3f3f3] flex items-center justify-center px-6 py-20"}
-    `}>
+    `}
+    >
       <motion.div
         initial={{ opacity: 0, y: -40 }}
         animate={{ opacity: 1, y: 0 }}
@@ -53,7 +54,7 @@ function Auth({isModel=false}) {
         </div>
         <h1 className="text-2xl md:text-3xl font-semibold text-center leading-snug mb-4">
           Continue with{" "}
-          <span className="bg-green-100 text-green-600 px-3 py-1 rounded-full inline-flex items-center gap-2">
+          <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full inline-flex items-center gap-2">
             <IoSparkles size={16} />
             AI Smart Interview
           </span>

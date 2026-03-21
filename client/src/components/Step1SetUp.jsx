@@ -92,7 +92,7 @@ function Step1SetUp({ onStart }) {
           initial={{ x: -80, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.7 }}
-          className="relative bg-linear-to-br from-green-50 to-green-100 p-12 flex flex-col justify-center"
+          className="relative bg-linear-to-br from-red-50 to-red-100 p-12 flex flex-col justify-center"
         >
           <h2 className="text-4xl font-bold text-gray-800 mb-6">
             Start Your AI Interview
@@ -106,15 +106,15 @@ function Step1SetUp({ onStart }) {
           <div className="space-y-5">
             {[
               {
-                icon: <FaUserTie className="text-green-600 text-xl" />,
+                icon: <FaUserTie className="text-red-600 text-xl" />,
                 text: "Choose Role & Experience",
               },
               {
-                icon: <FaMicrophoneAlt className="text-green-600 text-xl" />,
+                icon: <FaMicrophoneAlt className="text-red-600 text-xl" />,
                 text: "Smart Voice Interview",
               },
               {
-                icon: <FaChartLine className="text-green-600 text-xl" />,
+                icon: <FaChartLine className="text-red-600 text-xl" />,
                 text: "Performance Analytics",
               },
             ].map((item, index) => (
@@ -151,7 +151,7 @@ function Step1SetUp({ onStart }) {
               <input
                 type="text"
                 placeholder="Enter role"
-                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition"
+                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition"
                 onChange={(e) => setRole(e.target.value)}
                 value={role}
               />
@@ -163,7 +163,7 @@ function Step1SetUp({ onStart }) {
               <input
                 type="text"
                 placeholder="Experience (e.g. 2 years)"
-                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition"
+                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition"
                 onChange={(e) => setExperience(e.target.value)}
                 value={experience}
               />
@@ -176,7 +176,7 @@ function Step1SetUp({ onStart }) {
                 onFocus={() => setIsOpen(true)}
                 onBlur={() => setIsOpen(false)}
                 className="w-full py-3 px-4 pr-10 border border-gray-200 rounded-xl
-               focus:ring-2 focus:ring-green-500 outline-none transition
+               focus:ring-2 focus:ring-red-500 outline-none transition
                appearance-none bg-white cursor-pointer"
               >
                 <option value="Technical">Technical Interview</option>
@@ -196,9 +196,9 @@ function Step1SetUp({ onStart }) {
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 onClick={() => document.getElementById("resumeUpload").click()}
-                className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-green-500 hover:bg-green-50 transition"
+                className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-red-500 hover:bg-red-50 transition"
               >
-                <FaFileUpload className="text-4xl mx-auto text-green-600 mb-3" />
+                <FaFileUpload className="text-4xl mx-auto text-red-600 mb-3" />
 
                 <input
                   type="file"
@@ -259,7 +259,7 @@ function Step1SetUp({ onStart }) {
                       {skills.map((s, i) => (
                         <span
                           key={i}
-                          className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm"
+                          className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm"
                         >
                           {s}
                         </span>
@@ -275,7 +275,7 @@ function Step1SetUp({ onStart }) {
               disabled={!role || !experience || loading}
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.95 }}
-              className="w-full disabled:bg-gray-600 bg-green-600 hover:bg-green-700 text-white py-3 rounded-full text-lg font-semibold transition duration-300 shadow-md"
+              className="w-full disabled:bg-gray-600 bg-red-600 hover:bg-red-700 text-white py-3 rounded-full text-lg font-semibold transition duration-300 shadow-md"
             >
               {loading ? "Starting..." : "Start Interview"}
             </motion.button>
