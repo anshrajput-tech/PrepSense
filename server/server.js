@@ -10,8 +10,21 @@ import paymentRouter from './routes/payment.route.js';
 
 const app= express();
 
+const allowedOrigins = new Set([
+  process.env.CLIENT_URL,
+  "https://prepsense-client-main.onrender.com",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+].filter(Boolean));
+
 app.use(cors({
-  origin:"https://prepsense-client-main.onrender.com",
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+  },
   credentials:true
 }))
 app.use(express.json())

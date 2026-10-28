@@ -8,20 +8,29 @@ import Timer from "./Timer";
 import axios from "axios";
 import { ServerUrl } from "../App";
 function Step2Interview({ interviewData, onFinish }) {
-  const { interviewId, questions, userName } = interviewData;
+  const { interviewId, userName } = interviewData;
+  const durationSeconds = interviewData.durationSeconds || 600;
 
   const [isIntroPhase, setIsIntroPhase] = useState(true);
+  const [questions, setQuestions] = useState(interviewData.questions);
 
   const [isMicOn, setIsMicOn] = useState(true);
   const recognitionRef = useRef(null);
+  const isSubmittingRef = useRef(false);
+  const isFinishingRef = useRef(false);
+  const finishAfterSubmissionRef = useRef(false);
+  const finishInterviewRef = useRef(null);
+  const timeLeftRef = useRef(durationSeconds);
   const [isAIPlaying, setIsAIPlaying] = useState(false);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answer, setAnswer] = useState("");
   const [feedback, setFeedback] = useState("");
-  const [timeLeft, setTimeLeft] = useState(questions[0]?.timeLimit || 60);
+  const [timeLeft, setTimeLeft] = useState(durationSeconds);
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingQuestion, setIsGeneratingQuestion] = useState(false);
+  const [questionError, setQuestionError] = useState("");
   const [voiceGender, setVoiceGender] = useState("female");
   const [subtitle, setSubtitle] = useState("");
 
@@ -106,7 +115,7 @@ function Step2Interview({ interviewData, onFinish }) {
         videoRef.current.currentTime = 0;
         setIsAIPlaying(false);
 
-        if (isMicOn) {
+        if (isMicOn && !isFinishingRef.current) {
           startMic();
         }
         setTimeout(() => {
@@ -139,14 +148,9 @@ function Step2Interview({ interviewData, onFinish }) {
       } else if (currentQuestion) {
         await new Promise((r) => setTimeout(r, 800));
 
-        // If last question (hard level)
-        if (currentIndex === questions.length - 1) {
-          await speakText("Alright, this one might be a bit more challenging.");
-        }
-
         await speakText(currentQuestion.question);
 
-        if (isMicOn) {
+        if (isMicOn && !isFinishingRef.current && timeLeftRef.current > 0) {
           startMic();
         }
       }
@@ -154,29 +158,6 @@ function Step2Interview({ interviewData, onFinish }) {
 
     runIntro();
   }, [selectedVoice, isIntroPhase, currentIndex]);
-
-  useEffect(() => {
-    if (isIntroPhase) return;
-    if (!currentQuestion) return;
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [isIntroPhase, currentIndex]);
-
-  useEffect(() => {
-    if (!isIntroPhase && currentQuestion) {
-      setTimeLeft(currentQuestion.timeLimit || 60);
-    }
-  }, [currentIndex]);
 
   useEffect(() => {
     if (!("webkitSpeechRecognition" in window)) return;
@@ -199,13 +180,19 @@ function Step2Interview({ interviewData, onFinish }) {
     if (recognitionRef.current && !isAIPlaying) {
       try {
         recognitionRef.current.start();
-      } catch {}
+      } catch (error) {
+        if (error.name !== "InvalidStateError") throw error;
+      }
     }
   };
 
   const stopMic = () => {
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (error) {
+        if (error.name !== "InvalidStateError") throw error;
+      }
     }
   };
 
@@ -219,8 +206,9 @@ function Step2Interview({ interviewData, onFinish }) {
   };
 
   const submitAnswer = async () => {
-    if (isSubmitting) return;
+    if (isSubmittingRef.current || isFinishingRef.current) return;
     stopMic();
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
 
     try {
@@ -230,40 +218,66 @@ function Step2Interview({ interviewData, onFinish }) {
           interviewId,
           questionIndex: currentIndex,
           answer,
-          timeTaken: currentQuestion.timeLimit - timeLeft,
         },
         { withCredentials: true },
       );
 
       setFeedback(result.data.feedback);
       speakText(result.data.feedback);
-      setIsSubmitting(false);
     } catch (error) {
       console.log(error);
+    } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
+      if (finishAfterSubmissionRef.current) {
+        finishAfterSubmissionRef.current = false;
+        finishInterviewRef.current?.();
+      }
     }
   };
 
   const handleNext = async () => {
-    setAnswer("");
-    setFeedback("");
+    if (timeLeftRef.current === 0 || isFinishingRef.current) return;
+    setQuestionError("");
+    setIsGeneratingQuestion(true);
+    try {
+      await speakText("Alright, let's move to the next question.");
 
-    if (currentIndex + 1 >= questions.length) {
-      finishInterview();
-      return;
+      if (currentIndex + 1 < questions.length) {
+        setAnswer("");
+        setFeedback("");
+        setCurrentIndex(currentIndex + 1);
+        return;
+      }
+
+      if (timeLeftRef.current === 0 || isFinishingRef.current) return;
+
+      const result = await axios.post(
+        ServerUrl + "/api/interview/generate-next-question",
+        { interviewId },
+        { withCredentials: true },
+      );
+
+      if (isFinishingRef.current || timeLeftRef.current === 0) return;
+      const nextQuestions = [...questions, result.data.question];
+      setAnswer("");
+      setFeedback("");
+      setQuestions(nextQuestions);
+      setCurrentIndex(nextQuestions.length - 1);
+    } catch (error) {
+      console.log(error);
+      setQuestionError("Could not load the next question. Please try again.");
+    } finally {
+      setIsGeneratingQuestion(false);
     }
-
-    await speakText("Alright, let's move to the next question.");
-
-    setCurrentIndex(currentIndex + 1);
-    setTimeout(() => {
-      if (isMicOn) startMic();
-    }, 500);
   };
 
   const finishInterview = async () => {
+    if (isFinishingRef.current) return;
+    isFinishingRef.current = true;
     stopMic();
     setIsMicOn(false);
+    window.speechSynthesis.cancel();
     try {
       const result = await axios.post(
         ServerUrl + "/api/interview/finish",
@@ -275,17 +289,35 @@ function Step2Interview({ interviewData, onFinish }) {
       onFinish(result.data);
     } catch (error) {
       console.log(error);
+      isFinishingRef.current = false;
     }
   };
 
-  useEffect(() => {
-    if (isIntroPhase) return;
-    if (!currentQuestion) return;
+  finishInterviewRef.current = finishInterview;
 
-    if (timeLeft === 0 && !isSubmitting && !feedback) {
-      submitAnswer();
-    }
-  }, [timeLeft]);
+  useEffect(() => {
+    if (isIntroPhase) return undefined;
+
+    const deadline = Date.now() + durationSeconds * 1000;
+    const updateTimeLeft = () => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      timeLeftRef.current = remaining;
+      setTimeLeft(remaining);
+
+      if (remaining === 0) {
+        clearInterval(timer);
+        if (isSubmittingRef.current) {
+          finishAfterSubmissionRef.current = true;
+        } else {
+          finishInterviewRef.current?.();
+        }
+      }
+    };
+
+    const timer = setInterval(updateTimeLeft, 1000);
+    updateTimeLeft();
+    return () => clearInterval(timer);
+  }, [durationSeconds, isIntroPhase]);
 
   useEffect(() => {
     return () => {
@@ -340,7 +372,7 @@ function Step2Interview({ interviewData, onFinish }) {
             <div className="flex justify-center">
               <Timer
                 timeLeft={timeLeft}
-                totalTime={currentQuestion?.timeLimit}
+                totalTime={durationSeconds}
               />
             </div>
 
@@ -351,14 +383,14 @@ function Step2Interview({ interviewData, onFinish }) {
                 <span className="text-2xl font-bold text-rose-600">
                   {currentIndex + 1}
                 </span>
-                <span className="text-xs text-gray-400">Current Questions</span>
+                <span className="text-xs text-gray-400">Question number</span>
               </div>
 
               <div>
                 <span className="text-2xl font-bold text-rose-600">
                   {questions.length}
                 </span>
-                <span className="text-xs text-gray-400">Total Questions</span>
+                <span className="text-xs text-gray-400">Questions so far</span>
               </div>
             </div>
           </div>
@@ -374,7 +406,7 @@ function Step2Interview({ interviewData, onFinish }) {
           {!isIntroPhase && (
             <div className="relative mb-6 bg-gray-50 p-4 sm:p-6 rounded-2xl border border-gray-200 shadow-sm">
               <p className="text-xs sm:text-sm text-gray-400 mb-2">
-                Question {currentIndex + 1} of {questions.length}
+                Question {currentIndex + 1}
               </p>
 
               <div className="text-base sm:text-lg font-semibold text-gray-800 leading-relaxed ">
@@ -419,12 +451,17 @@ function Step2Interview({ interviewData, onFinish }) {
               className="mt-6 bg-rose-50 border border-rose-200 p-5 rounded-2xl shadow-sm"
             >
               <p className="text-rose-700 font-medium mb-4">{feedback}</p>
+              {questionError && (
+                <p className="mb-4 text-sm text-red-700">{questionError}</p>
+              )}
 
               <button
                 onClick={handleNext}
+                disabled={isGeneratingQuestion || timeLeft === 0}
                 className="w-full bg-linear-to-r from-rose-600 to-teal-500 text-white py-3 rounded-xl shadow-md hover:opacity-90 transition flex items-center justify-center gap-1"
               >
-                Next Question <BsArrowRight size={18} />
+                {isGeneratingQuestion ? "Preparing next question..." : "Next Question"}
+                {!isGeneratingQuestion && <BsArrowRight size={18} />}
               </button>
             </motion.div>
           )}

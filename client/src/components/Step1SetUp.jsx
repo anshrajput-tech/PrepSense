@@ -20,6 +20,8 @@ function Step1SetUp({ onStart }) {
   const [role, setRole] = useState("");
   const [experience, setExperience] = useState("");
   const [mode, setMode] = useState("Technical");
+  const [durationHours, setDurationHours] = useState(0);
+  const [durationMinutes, setDurationMinutes] = useState(10);
   const [isOpen, setIsOpen] = useState(false);
 
   const [resumeFile, setResumeFile] = useState(null);
@@ -29,6 +31,9 @@ function Step1SetUp({ onStart }) {
   const [resumeText, setResumeText] = useState("");
   const [analysisDone, setAnalysisDone] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const durationSeconds = (durationHours * 60 + durationMinutes) * 60;
+  const isDurationValid =
+    Number.isSafeInteger(durationSeconds) && durationSeconds >= 60;
 
   const handleUploadResume = async () => {
     if (!resumeFile || analyzing) return;
@@ -63,7 +68,7 @@ function Step1SetUp({ onStart }) {
     try {
       const result = await axios.post(
         ServerUrl + "/api/interview/generate-questions",
-        { role, experience, mode, resumeText, projects, skills },
+        { role, experience, mode, resumeText, projects, skills, durationSeconds },
         { withCredentials: true },
       );
       console.log(result.data);
@@ -192,6 +197,63 @@ function Step1SetUp({ onStart }) {
               </motion.div>
             </div>
 
+            <div className="rounded-xl border border-gray-200 p-4">
+              <label className="mb-3 block font-medium text-gray-700">
+                Interview duration
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="durationHours"
+                    className="mb-1 block text-sm text-gray-500"
+                  >
+                    Hours
+                  </label>
+                  <input
+                    id="durationHours"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={durationHours}
+                    onChange={(e) =>
+                      setDurationHours(
+                        Math.max(0, Math.floor(Number(e.target.value) || 0)),
+                      )
+                    }
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-red-500"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="durationMinutes"
+                    className="mb-1 block text-sm text-gray-500"
+                  >
+                    Minutes
+                  </label>
+                  <input
+                    id="durationMinutes"
+                    type="number"
+                    min="0"
+                    max="59"
+                    step="1"
+                    value={durationMinutes}
+                    onChange={(e) =>
+                      setDurationMinutes(
+                        Math.min(
+                          59,
+                          Math.max(0, Math.floor(Number(e.target.value) || 0)),
+                        ),
+                      )
+                    }
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-red-500"
+                  />
+                </div>
+              </div>
+              <p className="mt-2 text-sm text-gray-500">
+                The interviewer will keep asking questions until this time runs out.
+              </p>
+            </div>
+
             {!analysisDone && (
               <motion.div
                 whileHover={{ scale: 1.02 }}
@@ -272,7 +334,7 @@ function Step1SetUp({ onStart }) {
 
             <motion.button
               onClick={handleStart}
-              disabled={!role || !experience || loading}
+              disabled={!role || !experience || !isDurationValid || loading}
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.95 }}
               className="w-full disabled:bg-gray-600 bg-red-600 hover:bg-red-700 text-white py-3 rounded-full text-lg font-semibold transition duration-300 shadow-md"

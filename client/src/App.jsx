@@ -11,7 +11,9 @@ import axios from 'axios'
 import { useDispatch } from 'react-redux'
 import { setUserData } from './redux/userSlice'
 
-export const ServerUrl = "https://prepsense.onrender.com"
+export const ServerUrl =
+  import.meta.env.VITE_SERVER_URL ||
+  (import.meta.env.DEV ? "http://localhost:5000" : "https://prepsense.onrender.com")
 function App() {
   const dispatch=useDispatch()
   useEffect(()=>{

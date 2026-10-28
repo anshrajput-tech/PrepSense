@@ -1,6 +1,13 @@
 import genToken from "../configs/token.js";
 import User from "../models/user.model.js";
 
+const authCookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  path: "/",
+};
+
 export const googleAuth = async (req, res) => {
   try {
     const { name, email } = req.body;
@@ -13,9 +20,7 @@ export const googleAuth = async (req, res) => {
     }
     let token = await genToken(user._id);
     res.cookie("token", token, {
-      http: true,
-      secure: true,
-      sameSite: "none",
+      ...authCookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -30,7 +35,7 @@ export const googleAuth = async (req, res) => {
 
 export const logOut=async (req,res) => {
   try {
-    await res.clearCookie("token")
+    res.clearCookie("token", authCookieOptions)
     return res.status(200).json({message:"LogOut Successfully"})
 
   } catch (error) {

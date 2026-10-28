@@ -77,16 +77,23 @@ Return strictly JSON:
 
 export const generateQuestion = async (req, res) => {
   try {
-    let { role, experience, mode, resumeText, projects, skills } = req.body;
+    let { role, experience, mode, resumeText, projects, skills, durationSeconds } = req.body;
 
     role = role?.trim();
     experience = experience?.trim();
     mode = mode?.trim();
+    durationSeconds = Number(durationSeconds);
 
     if (!role || !experience || !mode) {
       return res
         .status(400)
         .json({ message: "Role, Experience and Mode are required." });
+    }
+
+    if (!Number.isSafeInteger(durationSeconds) || durationSeconds < 60) {
+      return res.status(400).json({
+        message: "Interview duration must be at least one minute.",
+      });
     }
 
     const user = await User.findById(req.userId);
@@ -134,7 +141,7 @@ You are a real human interviewer conducting a professional interview.
 
 Speak in simple, natural English as if you are directly talking to the candidate.
 
-Generate exactly 5 interview questions.
+Generate exactly 1 interview question.
 
 Strict Rules:
 - Each question must contain between 15 and 25 words.
@@ -145,13 +152,6 @@ Strict Rules:
 - One question per line only.
 - Keep language simple and conversational.
 - Questions must feel practical and realistic.
-
-Difficulty progression:
-Question 1 → easy  
-Question 2 → easy  
-Question 3 → medium  
-Question 4 → medium  
-Question 5 → hard  
 
 Make questions based on the candidate’s role, experience,interviewMode, projects, skills, and resume details.
 `,
@@ -170,13 +170,13 @@ Make questions based on the candidate’s role, experience,interviewMode, projec
       });
     }
 
-    const questionsArray = aiResponse
+    const firstQuestion = aiResponse
       .split("\n")
-      .map((q) => q.trim())
-      .filter((q) => q.length > 0)
-      .slice(0, 5);
+      .map((question) => question.trim())
+      .find(Boolean)
+      ?.replace(/^\d+[\.\)]\s*/, "");
 
-    if (questionsArray.length === 0) {
+    if (!firstQuestion) {
       return res.status(500).json({
         message: "AI failed to generate questions.",
       });
@@ -191,17 +191,15 @@ Make questions based on the candidate’s role, experience,interviewMode, projec
       experience,
       mode,
       resumeText: safeResume,
-      questions: questionsArray.map((q, index) => ({
-        question: q,
-        difficulty: ["easy", "easy", "medium", "medium", "hard"][index],
-        timeLimit: [60, 60, 90, 90, 120][index],
-      })),
+      durationSeconds,
+      questions: [{ question: firstQuestion, difficulty: "easy" }],
     });
 
     res.json({
       interviewId: interview._id,
       creditsLeft: user.credits,
       userName: user.name,
+      durationSeconds: interview.durationSeconds,
       questions: interview.questions,
     });
   } catch (error) {
@@ -211,12 +209,111 @@ Make questions based on the candidate’s role, experience,interviewMode, projec
   }
 };
 
+export const generateNextQuestion = async (req, res) => {
+  try {
+    const { interviewId } = req.body;
+    const interview = await Interview.findOne({
+      _id: interviewId,
+      userId: req.userId,
+      status: "Incompleted",
+    });
+
+    if (!interview) {
+      return res.status(404).json({ message: "Active interview not found." });
+    }
+
+    if (typeof interview.questions.at(-1)?.answer !== "string") {
+      return res.status(400).json({
+        message: "Submit an answer before requesting another question.",
+      });
+    }
+
+    const previousQuestions = interview.questions
+      .map(
+        (question, index) =>
+          `Question ${index + 1}: ${question.question}\nCandidate's answer: ${question.answer || "No answer submitted."}`,
+      )
+      .join("\n\n");
+    const difficulty =
+      interview.questions.length < 2
+        ? "easy"
+        : interview.questions.length < 4
+          ? "medium"
+          : "hard";
+
+    const messages = [
+      {
+        role: "system",
+        content: `
+You are a professional human interviewer conducting a ${interview.mode} interview.
+Ask exactly one new, practical follow-up question for a ${interview.role} candidate with ${interview.experience} of experience.
+Base it on the candidate's resume and previous answers. Do not repeat an earlier question.
+The question should be ${difficulty} difficulty, one complete sentence, and between 15 and 25 words.
+Return only the question, without numbering or any extra text.
+Resume: ${interview.resumeText || "Not provided."}
+Previous questions and answers:
+${previousQuestions}
+`,
+      },
+    ];
+
+    const aiResponse = await askAi(messages);
+    const questionText = aiResponse
+      .split("\n")
+      .map((question) => question.trim())
+      .find(Boolean)
+      ?.replace(/^\d+[\.\)]\s*/, "");
+
+    if (!questionText) {
+      return res.status(500).json({ message: "AI failed to generate a question." });
+    }
+
+    const question = { question: questionText, difficulty };
+    const updatedInterview = await Interview.findOneAndUpdate(
+      {
+        _id: interview._id,
+        userId: req.userId,
+        status: "Incompleted",
+        questions: { $size: interview.questions.length },
+        [`questions.${interview.questions.length - 1}.answer`]: {
+          $type: "string",
+        },
+      },
+      { $push: { questions: question } },
+      { new: true },
+    );
+
+    if (!updatedInterview) {
+      return res.status(409).json({
+        message: "Interview ended before the next question could be added.",
+      });
+    }
+
+    return res.status(200).json({
+      question: updatedInterview.questions[updatedInterview.questions.length - 1],
+      questionIndex: updatedInterview.questions.length - 1,
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: `failed to generate next question ${error}` });
+  }
+};
 
 export const submitAnswer = async (req, res) => {
   try {
-    const { interviewId, questionIndex, answer, timeTaken } = req.body
+    const { interviewId, questionIndex, answer } = req.body
 
-    const interview = await Interview.findById(interviewId)
+    const interview = await Interview.findOne({
+      _id: interviewId,
+      userId: req.userId,
+    });
+    if (!interview) {
+      return res.status(404).json({ message: "Interview not found." });
+    }
+    if (!Number.isInteger(questionIndex) || !interview.questions[questionIndex]) {
+      return res.status(400).json({ message: "Invalid question index." });
+    }
     const question = interview.questions[questionIndex]
 
     // If no answer
@@ -231,20 +328,6 @@ export const submitAnswer = async (req, res) => {
         feedback: question.feedback
       });
     }
-
-    // If time exceeded
-    if (timeTaken > question.timeLimit) {
-      question.score = 0;
-      question.feedback = "Time limit exceeded. Answer not evaluated.";
-      question.answer = answer;
-
-      await interview.save();
-
-      return res.json({
-        feedback: question.feedback
-      });
-    }
-
 
     const messages = [
       {
@@ -326,19 +409,25 @@ Answer: ${answer}
 export const finishInterview = async (req,res) => {
   try {
     const {interviewId} = req.body
-    const interview = await Interview.findById(interviewId)
+    const interview = await Interview.findOne({
+      _id: interviewId,
+      userId: req.userId,
+    })
     if(!interview){
       return res.status(400).json({message:"failed to find Interview"})
     }
 
-    const totalQuestions = interview.questions.length;
+    const answeredQuestions = interview.questions.filter(
+      (question) => typeof question.answer === "string",
+    );
+    const totalQuestions = answeredQuestions.length;
 
     let totalScore = 0;
     let totalConfidence = 0;
     let totalCommunication = 0;
     let totalCorrectness = 0;
 
-    interview.questions.forEach((q) => {
+    answeredQuestions.forEach((q) => {
       totalScore += q.score || 0;
       totalConfidence += q.confidence || 0;
       totalCommunication += q.communication || 0;
@@ -371,7 +460,7 @@ export const finishInterview = async (req,res) => {
       confidence: Number(avgConfidence.toFixed(1)),
       communication: Number(avgCommunication.toFixed(1)),
       correctness: Number(avgCorrectness.toFixed(1)),
-      questionWiseScore: interview.questions.map((q) => ({
+      questionWiseScore: answeredQuestions.map((q) => ({
         question: q.question,
         score: q.score || 0,
         feedback: q.feedback || "",
@@ -409,13 +498,16 @@ export const getInterviewReport = async (req,res) => {
     }
 
 
-    const totalQuestions = interview.questions.length;
+    const answeredQuestions = interview.questions.filter(
+      (question) => typeof question.answer === "string",
+    );
+    const totalQuestions = answeredQuestions.length;
 
     let totalConfidence = 0;
     let totalCommunication = 0;
     let totalCorrectness = 0;
 
-    interview.questions.forEach((q) => {
+    answeredQuestions.forEach((q) => {
       totalConfidence += q.confidence || 0;
       totalCommunication += q.communication || 0;
       totalCorrectness += q.correctness || 0;
@@ -437,14 +529,10 @@ export const getInterviewReport = async (req,res) => {
       confidence: Number(avgConfidence.toFixed(1)),
       communication: Number(avgCommunication.toFixed(1)),
       correctness: Number(avgCorrectness.toFixed(1)),
-      questionWiseScore: interview.questions
+      questionWiseScore: answeredQuestions
     });
 
   } catch (error) {
     return res.status(500).json({message:`failed to find currentUser Interview report ${error}`})
   }
 }
-
-
-
-
